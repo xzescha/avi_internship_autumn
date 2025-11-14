@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  postgres_PR_db:
+    image: postgres:16-alpine
+    container_name: avi-postgres
+    environment:
+      POSTGRES_USER: admin_PR
+      POSTGRES_PASSWORD: appPass_QWERTY
+      POSTGRES_DB: PR_serv
+    ports:
+      - "5432:5432"
+    volumes:
+      # sql-файлы миграций: internal/db/migrations/0001_init.sql и т.п.
+      - ./internal/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_PR -d PR_serv"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    container_name: avi-app
+    depends_on:
+      postgres_PR_db:
+        condition: service_healthy
+    environment:
+      # HTTP
+      HTTP_PORT: "8080"
+
+      # DB (совпадает с internal/config)
+      DB_HOST: postgres_PR_db
+      DB_PORT: "5432"
+      DB_USER: admin_PR
+      DB_PASSWORD: appPass_QWERTY
+      DB_NAME: PR_serv
+      DB_SSLMODE: disable
+
+      # при желании можно вместо этого одного DSN:
+      # DATABASE_DSN: postgres://app:app@postgres:5432/app?sslmode=disable
+    ports:
+      - "8080:8080"
+    restart: on-failure
