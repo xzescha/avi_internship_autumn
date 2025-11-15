@@ -1,3 +1,4 @@
+// Package service сервисный слой с логикой
 package service
 
 import (
@@ -16,6 +17,7 @@ type prService struct {
 	users repository.UserRepository
 }
 
+// NewPRService создаёт сервис для работы с pull requestами.
 func NewPRService(
 	prs repository.PRRepository,
 	users repository.UserRepository,
@@ -202,6 +204,16 @@ func filterActiveExcept(users []domain.User, excludeID string) []domain.User {
 		res = append(res, u)
 	}
 	return res
+}
+
+// GetAssignmentStatsByReviewer возвращает статистику назначений по ревьюверам.
+func (s *prService) GetAssignmentStatsByReviewer(ctx context.Context) ([]domain.AssignmentStats, error) {
+	return s.prs.GetAssignmentStatsByReviewer(ctx)
+}
+
+// GetAssignmentStatsByPR статистика по PR
+func (s *prService) GetAssignmentStatsByPR(ctx context.Context) ([]domain.PullRequestAssignmentStats, error) {
+	return s.prs.GetAssignmentStatsByPR(ctx)
 }
 
 // pickRandomUserIDs выбирает до предела случайных user.ID.

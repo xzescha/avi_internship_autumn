@@ -67,7 +67,12 @@ func (r *teamRepo) Get(ctx context.Context, teamName string) (domain.Team, error
 	if err != nil {
 		return domain.Team{}, err
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			return
+		}
+	}(rows)
 
 	members := make([]domain.User, 0)
 	for rows.Next() {

@@ -12,6 +12,7 @@ type userService struct {
 	prs   repository.PRRepository
 }
 
+// NewUserService создаёт сервис для работы с пользователями и их PR.
 func NewUserService(
 	users repository.UserRepository,
 	prs repository.PRRepository,

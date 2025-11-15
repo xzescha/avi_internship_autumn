@@ -19,6 +19,16 @@ type teamDTO struct {
 	Members  []teamMemberDTO `json:"members"`
 }
 
+type assignmentStatsDTO struct {
+	UserID      string `json:"user_id"`
+	Assignments int64  `json:"assignments"`
+}
+
+type assignmentStatsPRDTO struct {
+	PullRequestID string `json:"pull_request_id"`
+	Assignments   int64  `json:"assignments"`
+}
+
 type userDTO struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
@@ -87,10 +97,12 @@ func pullRequestToShortDTO(pr domain.PullRequest) pullRequestShortDTO {
 	}
 }
 
+// TeamHandler обрабатывает HTTP-запросы, связанные с командами.
 type TeamHandler struct {
 	svc app.TeamService
 }
 
+// NewTeamHandler создаёт обработчик команд.
 func NewTeamHandler(svc app.TeamService) *TeamHandler {
 	return &TeamHandler{svc: svc}
 }
@@ -159,10 +171,12 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// UserHandler обрабатывает HTTP-запросы, связанные с пользователями.
 type UserHandler struct {
 	svc app.UserService
 }
 
+// NewUserHandler создаёт обработчик пользователей.
 func NewUserHandler(svc app.UserService) *UserHandler {
 	return &UserHandler{svc: svc}
 }
@@ -232,12 +246,12 @@ func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// ===== PullRequests =====
-
+// PRHandler обрабатывает HTTP-запросы, связанные с pull requestами.
 type PRHandler struct {
 	svc app.PRService
 }
 
+// NewPRHandler создаёт обработчик pull requestов.
 func NewPRHandler(svc app.PRService) *PRHandler {
 	return &PRHandler{svc: svc}
 }
@@ -335,6 +349,47 @@ func (h *PRHandler) Reassign(w http.ResponseWriter, r *http.Request) {
 	}{
 		PR:         pullRequestToDTO(pr),
 		ReplacedBy: replacedBy,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// StatsAssignments GET /stats/assignments
+func (h *PRHandler) StatsAssignments(w http.ResponseWriter, r *http.Request) {
+	byReviewer, err := h.svc.GetAssignmentStatsByReviewer(r.Context())
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	byPR, err := h.svc.GetAssignmentStatsByPR(r.Context())
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	resp := struct {
+		ByReviewer []assignmentStatsDTO   `json:"by_reviewer"`
+		ByPR       []assignmentStatsPRDTO `json:"by_pr"`
+	}{
+		ByReviewer: make([]assignmentStatsDTO, 0, len(byReviewer)),
+		ByPR:       make([]assignmentStatsPRDTO, 0, len(byPR)),
+	}
+
+	for _, s := range byReviewer {
+		resp.ByReviewer = append(resp.ByReviewer, assignmentStatsDTO{
+			UserID:      s.ReviewerID,
+			Assignments: s.Count,
+		})
+	}
+
+	for _, s := range byPR {
+		resp.ByPR = append(resp.ByPR, assignmentStatsPRDTO{
+			PullRequestID: s.PullRequestID,
+			Assignments:   s.Count,
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")

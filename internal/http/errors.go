@@ -1,3 +1,4 @@
+// Package http пакет для работы с http запросами к серверу
 package http
 
 import (
@@ -11,12 +12,18 @@ import (
 type ErrorCode string
 
 const (
-	CodeTeamExists  ErrorCode = "TEAM_EXISTS"
-	CodePRExists    ErrorCode = "PR_EXISTS"
-	CodePRMerged    ErrorCode = "PR_MERGED"
+	// CodeTeamExists — команда уже существует.
+	CodeTeamExists ErrorCode = "TEAM_EXISTS"
+	// CodePRExists - Pull Request уже существует
+	CodePRExists ErrorCode = "PR_EXISTS"
+	// CodePRMerged - Pull Request уже смержен
+	CodePRMerged ErrorCode = "PR_MERGED"
+	// CodeNotAssigned - Ревьюер не назначен
 	CodeNotAssigned ErrorCode = "NOT_ASSIGNED"
+	// CodeNoCandidate - Нет доступного активного кандидата
 	CodeNoCandidate ErrorCode = "NO_CANDIDATE"
-	CodeNotFound    ErrorCode = "NOT_FOUND"
+	// CodeNotFound - Нет такого ресурса
+	CodeNotFound ErrorCode = "NOT_FOUND"
 )
 
 // структура под ErrorResponse из openapi.yml
@@ -25,10 +32,12 @@ type errorBody struct {
 	Message string    `json:"message"`
 }
 
+// ErrorResponse структура сообщения об ошибке
 type ErrorResponse struct {
 	Error errorBody `json:"error"`
 }
 
+// ErrorHTTP структура сообщения об ошибке с кодом HTTP
 type ErrorHTTP struct {
 	Status int
 	Body   *ErrorResponse

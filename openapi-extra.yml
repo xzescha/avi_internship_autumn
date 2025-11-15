@@ -1,0 +1,89 @@
+openapi: 3.0.3
+info:
+  title: Avito Backend internship autumn Extra endpoints
+  version: "1.0.0"
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Stats
+    description: Дополнительная статистика по назначениям ревьюверов
+  - name: Users
+    description: Дополнительные операции над пользователями
+
+paths:
+  /stats/assignments:
+    get:
+      tags: [Stats]
+      summary: Статистика назначений ревьюверов и PR
+      description: |
+        Возвращает агрегированную статистику назначений:
+        - по пользователям-ревьюверам (сколько раз назначены на данный момент, т.е. если переназначить пользователя, статистика поменяется не просто в плюс, а возьмет состояние каждого ревьюера по назначениям на данный момент),
+        - по PR (сколько ревьюверов назначено на PR на данный момент, в т.ч. MERGED PR).
+        * Эти запросы позволяют помочь условному админу системы посмотреть на нагрузку пользователей в целом и скорректировать их активность.
+      responses:
+        '200':
+          description: Статистика назначений по ревьюверам и PR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsAssignmentsResponse'
+              example:
+                by_reviewer:
+                  - user_id: u2
+                    assignments: 5
+                  - user_id: u1
+                    assignments: 3
+                by_pr:
+                  - pull_request_id: pr-1001
+                    assignments: 2
+                  - pull_request_id: pr-1002
+                    assignments: 1
+
+components:
+  schemas:
+    AssignmentStatsByReviewer:
+      type: object
+      required:
+        - user_id
+        - assignments
+      properties:
+        user_id:
+          type: string
+          description: ID пользователя-ревьювера
+        assignments:
+          type: integer
+          format: int64
+          description: Количество назначений данного ревьювера
+
+    AssignmentStatsByPR:
+      type: object
+      required:
+        - pull_request_id
+        - assignments
+      properties:
+        pull_request_id:
+          type: string
+          description: ID PR
+        assignments:
+          type: integer
+          format: int64
+          description: Количество назначенных ревьюверов у этого PR
+
+    StatsAssignmentsResponse:
+      type: object
+      required:
+        - by_reviewer
+        - by_pr
+      properties:
+        by_reviewer:
+          type: array
+          description: Статистика по ревьюверам
+          items:
+            $ref: '#/components/schemas/AssignmentStatsByReviewer'
+        by_pr:
+          type: array
+          description: Статистика по PR
+          items:
+            $ref: '#/components/schemas/AssignmentStatsByPR'

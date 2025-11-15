@@ -31,5 +31,8 @@ func NewRouter(
 	mux.HandleFunc("/pullRequest/merge", prHandler.Merge)
 	mux.HandleFunc("/pullRequest/reassign", prHandler.Reassign)
 
+	// Statistics
+	mux.HandleFunc("/stats/assignments", prHandler.StatsAssignments)
+
 	return mux
 }

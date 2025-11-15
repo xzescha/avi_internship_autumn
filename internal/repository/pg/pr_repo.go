@@ -1,3 +1,4 @@
+// Package pg содержит реализации репозиториев, работающих с PostgreSQL.
 package pg
 
 import (
@@ -6,12 +7,74 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/lib/pq"
 )
 
 type prRepo struct {
 	db *sql.DB
 }
 
+type prRowScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanPullRequest(s prRowScanner) (domain.PullRequest, error) {
+	var pr domain.PullRequest
+	var statusStr string
+	var createdAt sql.NullTime
+	var mergedAt sql.NullTime
+
+	if err := s.Scan(
+		&pr.ID,
+		&pr.Name,
+		&pr.AuthorID,
+		&statusStr,
+		&createdAt,
+		&mergedAt,
+	); err != nil {
+		return domain.PullRequest{}, err
+	}
+
+	pr.Status = domain.PRStatus(statusStr)
+	if createdAt.Valid {
+		pr.CreatedAt = createdAt.Time
+	}
+	if mergedAt.Valid {
+		t := mergedAt.Time
+		pr.MergedAt = &t
+	}
+
+	return pr, nil
+}
+
+// Вспомогательная функция для сканирования статистики вида (id, count)
+func scanStats[T any](rows *sql.Rows, mapper func(id string, count int64) T) ([]T, error) {
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var result []T
+
+	for rows.Next() {
+		var id string
+		var cnt int64
+
+		if err := rows.Scan(&id, &cnt); err != nil {
+			return nil, err
+		}
+
+		result = append(result, mapper(id, cnt))
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// NewPRRepository создаёт репозиторий pull requestов на базе PostgreSQL.
 func NewPRRepository(db *sql.DB) repository.PRRepository {
 	return &prRepo{db: db}
 }
@@ -43,12 +106,7 @@ func (r *prRepo) Create(ctx context.Context, pr domain.PullRequest) error {
 // Имя намекает на блокировку, но блокировка будет работать только,
 // если вызывающий оборачивает это в транзакцию.
 func (r *prRepo) GetForUpdate(ctx context.Context, id string) (domain.PullRequest, error) {
-	var pr domain.PullRequest
-	var statusStr string
-	var createdAt sql.NullTime
-	var mergedAt sql.NullTime
-
-	err := r.db.QueryRowContext(ctx, `
+	row := r.db.QueryRowContext(ctx, `
         SELECT pull_request_id,
                pull_request_name,
                author_id,
@@ -57,28 +115,14 @@ func (r *prRepo) GetForUpdate(ctx context.Context, id string) (domain.PullReques
                merged_at
         FROM pull_requests
         WHERE pull_request_id = $1
-    `, id).Scan(
-		&pr.ID,
-		&pr.Name,
-		&pr.AuthorID,
-		&statusStr,
-		&createdAt,
-		&mergedAt,
-	)
+    `, id)
+
+	pr, err := scanPullRequest(row)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.PullRequest{}, domain.ErrNotFound
 		}
 		return domain.PullRequest{}, err
-	}
-
-	pr.Status = domain.PRStatus(statusStr)
-	if createdAt.Valid {
-		pr.CreatedAt = createdAt.Time
-	}
-	if mergedAt.Valid {
-		t := mergedAt.Time
-		pr.MergedAt = &t
 	}
 
 	return pr, nil
@@ -123,7 +167,7 @@ func (r *prRepo) ListReviewerPRs(ctx context.Context, reviewerID string) ([]doma
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-
+			return
 		}
 	}(rows)
 
@@ -179,7 +223,7 @@ func (r *prRepo) GetReviewers(ctx context.Context, prID string) ([]string, error
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-
+			return
 		}
 	}(rows)
 
@@ -223,4 +267,88 @@ func (r *prRepo) RemoveReviewer(ctx context.Context, prID, reviewerID string) er
 	// но сервис перед этим уже проверяет назначение, так что это скорее аномалия.
 	_, _ = res.RowsAffected()
 	return nil
+}
+
+// GetAssignmentStatsByReviewer возвращает число назначений по каждому ревьюверу.
+func (r *prRepo) GetAssignmentStatsByReviewer(ctx context.Context) ([]domain.AssignmentStats, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT reviewer_id, COUNT(*) AS cnt
+        FROM pr_reviewers
+        GROUP BY reviewer_id
+        ORDER BY cnt DESC, reviewer_id
+    `)
+	if err != nil {
+		return nil, err
+	}
+	return scanStats(rows, func(id string, count int64) domain.AssignmentStats {
+		return domain.AssignmentStats{
+			ReviewerID: id,
+			Count:      count,
+		}
+	})
+}
+
+// GetAssignmentStatsByPR возвращает число назначений по каждому PR.
+func (r *prRepo) GetAssignmentStatsByPR(ctx context.Context) ([]domain.PullRequestAssignmentStats, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT pull_request_id, COUNT(*) AS cnt
+        FROM pr_reviewers
+        GROUP BY pull_request_id
+        ORDER BY cnt DESC, pull_request_id
+    `)
+	if err != nil {
+		return nil, err
+	}
+
+	return scanStats(rows, func(id string, count int64) domain.PullRequestAssignmentStats {
+		return domain.PullRequestAssignmentStats{
+			PullRequestID: id,
+			Count:         count,
+		}
+	})
+}
+
+// ListOpenPRsByReviewers возвращает все открытые PR, где назначен кто-то из reviewerIDs.
+func (r *prRepo) ListOpenPRsByReviewers(ctx context.Context, reviewerIDs []string) ([]domain.PullRequest, error) {
+	if len(reviewerIDs) == 0 {
+		return nil, nil
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT DISTINCT
+               p.pull_request_id,
+               p.pull_request_name,
+               p.author_id,
+               p.status,
+               p.created_at,
+               p.merged_at
+        FROM pull_requests p
+        JOIN pr_reviewers r ON r.pull_request_id = p.pull_request_id
+        WHERE p.status = 'OPEN'
+          AND r.reviewer_id = ANY($1)
+        ORDER BY p.created_at DESC, p.pull_request_id
+    `, pq.Array(reviewerIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			return
+		}
+	}(rows)
+
+	var prs []domain.PullRequest
+	for rows.Next() {
+		pr, err := scanPullRequest(rows)
+		if err != nil {
+			return nil, err
+		}
+		prs = append(prs, pr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return prs, nil
 }

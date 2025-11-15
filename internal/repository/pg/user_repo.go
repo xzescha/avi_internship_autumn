@@ -12,6 +12,7 @@ type userRepo struct {
 	db *sql.DB
 }
 
+// NewUserRepository создаёт репозиторий пользователей на базе PostgreSQL.
 func NewUserRepository(db *sql.DB) repository.UserRepository {
 	return &userRepo{db: db}
 }
@@ -62,7 +63,7 @@ func (r *userRepo) ListByTeam(ctx context.Context, teamName string) ([]domain.Us
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-
+			return
 		}
 	}(rows)
 

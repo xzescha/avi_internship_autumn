@@ -12,6 +12,7 @@ type teamService struct {
 	users repository.UserRepository
 }
 
+// NewTeamService создаёт сервис для работы с командами.
 func NewTeamService(teams repository.TeamRepository, users repository.UserRepository) app.TeamService {
 	return &teamService{
 		teams: teams,

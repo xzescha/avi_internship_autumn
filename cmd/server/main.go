@@ -1,4 +1,5 @@
-package main
+// Package server пакет для инициализации всех сервисов приложения
+package server
 
 import (
 	"context"
@@ -48,8 +49,6 @@ func main() {
 	}
 	cancel()
 
-	// TODO: run migrations here
-
 	repos := app.NewRepositories(db)
 
 	teamSvc := service.NewTeamService(repos.Teams, repos.Users)
@@ -74,7 +73,6 @@ func main() {
 		}
 	}()
 
-	// ---- graceful shutdown ----
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 

@@ -1,3 +1,4 @@
+// Package app пакет инициализации приложения
 package app
 
 import (

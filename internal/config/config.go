@@ -1,3 +1,4 @@
+// Package config содержит структуры конфигурации приложения и функцию их загрузки.
 package config
 
 import (
@@ -22,6 +23,7 @@ const (
 	defaultDBConnMaxLifetime = 30 * time.Minute
 )
 
+// HTTPConfig содержит настройки HTTP-сервера.
 type HTTPConfig struct {
 	Port         string
 	ReadTimeout  time.Duration
@@ -29,6 +31,7 @@ type HTTPConfig struct {
 	IdleTimeout  time.Duration
 }
 
+// DBConfig содержит настройки подключения к базе данных.
 type DBConfig struct {
 	// Либо готовый DSN из DATABASE_DSN,
 	// либо поля ниже, из которых DSN будет собран. * DSN - имя источника данных. В нашем случае ссылка на БД
@@ -45,16 +48,19 @@ type DBConfig struct {
 	ConnMaxLifetime time.Duration
 }
 
+// Config агрегирует конфигурацию всех подсистем приложения.
 type Config struct {
 	HTTP HTTPConfig
 	DB   DBConfig
 }
 
-// DSN возвращает строку подключения для database/sql.
+// DSNString возвращает строку подключения для database/sql.
 func (c DBConfig) DSNString() string {
 	if c.DSN != "" {
 		return c.DSN
 	}
+
+	// postgres://user:pass@host:port/dbname?sslmode=mode
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		c.User,

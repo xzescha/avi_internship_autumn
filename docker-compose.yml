@@ -38,7 +38,7 @@ services:
       DB_SSLMODE: disable
 
       # при желании можно вместо этого одного DSN:
-      # DATABASE_DSN: postgres://app:app@postgres:5432/app?sslmode=disable
+      # DATABASE_DSN: postgres://app:app@postgres:5432/app?sslmode=disable,
     ports:
       - "8080:8080"
     restart: on-failure
