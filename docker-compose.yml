@@ -11,7 +11,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # sql-файлы миграций: internal/db/migrations/0001_init.sql и т.п.
       - ./internal/db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin_PR -d PR_serv"]
@@ -26,10 +25,8 @@ services:
       postgres_PR_db:
         condition: service_healthy
     environment:
-      # HTTP
       HTTP_PORT: "8080"
 
-      # DB (совпадает с internal/config)
       DB_HOST: postgres_PR_db
       DB_PORT: "5432"
       DB_USER: admin_PR
@@ -37,8 +34,6 @@ services:
       DB_NAME: PR_serv
       DB_SSLMODE: disable
 
-      # при желании можно вместо этого одного DSN:
-      # DATABASE_DSN: postgres://app:app@postgres:5432/app?sslmode=disable,
     ports:
       - "8080:8080"
     restart: on-failure
@@ -52,13 +47,11 @@ services:
       postgres_PR_db:
         condition: service_healthy
     environment:
-      # подключаемся к уже поднятому postgres-сервису
       E2E_DSN: postgres://admin_PR:appPass_QWERTY@postgres_PR_db:5432/PR_serv?sslmode=disable
     volumes:
        - /var/run/docker.sock:/var/run/docker.sock
     command: [ "go", "test", "-tags=e2e", "./test/e2e", "-v" ]
 
-    # ---------- Нагрузочные тесты (k6) ---------- #
   k6:
     image: grafana/k6
     profiles: [ "tests" ]
@@ -68,9 +61,9 @@ services:
       e2e:
         condition: service_completed_successfully
     environment:
-      BASE_URL: http://app:8080     # app внутри сети доступен по имени сервиса
+      BASE_URL: http://app:8080
     volumes:
-      - ./test/load:/scripts:ro          # тут лежит k6_pr_scenario.js
+      - ./test/load:/scripts:ro
     command: [ "run", "/scripts/k6_pr_scenario.js" ]
 
 

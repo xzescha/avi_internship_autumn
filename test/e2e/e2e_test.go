@@ -28,7 +28,6 @@ import (
 func startPostgres(t *testing.T, ctx context.Context) (*sql.DB, func()) {
 	t.Helper()
 
-	// 1. Если есть E2E_DSN — используем его (режим docker-compose)
 	if dsn := os.Getenv("E2E_DSN"); dsn != "" {
 		db, err := sql.Open("postgres", dsn)
 		if err != nil {
@@ -47,7 +46,6 @@ func startPostgres(t *testing.T, ctx context.Context) (*sql.DB, func()) {
 		return db, teardown
 	}
 
-	// 2. Иначе — локальный режим: поднимаем Postgres через testcontainers
 	req := tc.ContainerRequest{
 		Image:        "postgres:16-alpine",
 		ExposedPorts: []string{"5432/tcp"},
@@ -125,28 +123,22 @@ func TestE2E_FullFlow(t *testing.T) {
 	db, teardown := startPostgres(t, ctx)
 	defer teardown()
 
-	// Если E2E_DSN не задан, значит мы сами подняли тестовый Postgres через testcontainers
-	// и должны применить миграции. В docker-compose база уже проинициализирована entrypoint'ом.
 	if os.Getenv("E2E_DSN") == "" {
 		applyMigrations(t, db)
 	}
 
-	// репозитории
 	repos := app.NewRepositories(db)
 
-	// сервисы
 	teamSvc := service.NewTeamService(repos.Teams, repos.Users)
 	userSvc := service.NewUserService(repos.Users, repos.PRs)
 	prSvc := service.NewPRService(repos.PRs, repos.Users)
 
-	// HTTP
 	handler := apihttp.NewRouter(teamSvc, userSvc, prSvc)
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
 	client := server.Client()
 
-	// 1) создаём команду
 	createTeamReq := `{
 	  "team_name": "payments_e2e",
 	  "members": [
@@ -171,7 +163,6 @@ func TestE2E_FullFlow(t *testing.T) {
 		t.Fatalf("unexpected status %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	// 2) создаём PR
 	createPRReq := `{
 	  "pull_request_id": "pr-e2e-1",
 	  "pull_request_name": "Add payments endpoint",
@@ -220,7 +211,6 @@ func TestE2E_FullFlow(t *testing.T) {
 		t.Fatalf("unexpected status %d for bulkDeactivate, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	// 4) проверяем статистику
 	resp, err = client.Get(server.URL + "/stats/assignments")
 	if err != nil {
 		t.Fatalf("stats/assignments request failed: %v", err)
