@@ -6,6 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/lib/pq"
 )
 
 type userRepo struct {
@@ -30,6 +32,31 @@ func (r *userRepo) Upsert(ctx context.Context, u domain.User) error {
             updated_at = now()
     `, u.ID, u.Username, u.TeamName, u.IsActive)
 	return err
+}
+
+// BulkDeactivateInTeam массово деактивирует пользователей команды.
+// Возвращает количество реально обновлённых записей.
+func (r *userRepo) BulkDeactivateInTeam(ctx context.Context, teamName string, userIDs []string) (int64, error) {
+	if len(userIDs) == 0 {
+		return 0, nil
+	}
+
+	res, err := r.db.ExecContext(ctx, `
+        UPDATE users
+        SET is_active = FALSE,
+            updated_at = now()
+        WHERE team_name = $1
+          AND user_id = ANY($2)
+    `, teamName, pq.Array(userIDs))
+	if err != nil {
+		return 0, err
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return affected, nil
 }
 
 // GetByID возвращает пользователя по id или domain.ErrNotFound.

@@ -396,3 +396,36 @@ func (h *PRHandler) StatsAssignments(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
 }
+
+// BulkDeactivate POST /users/bulkDeactivate
+func (h *UserHandler) BulkDeactivate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		TeamName string   `json:"team_name"`
+		UserIDs  []string `json:"user_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.svc.BulkDeactivateTeam(r.Context(), req.TeamName, req.UserIDs)
+	if err != nil {
+		WriteError(w, err)
+		return
+	}
+
+	resp := struct {
+		TeamName         string `json:"team_name"`
+		DeactivatedUsers int64  `json:"deactivated_users"`
+		AffectedPRs      int    `json:"affected_prs"`
+	}{
+		TeamName:         result.TeamName,
+		DeactivatedUsers: result.DeactivatedUsers,
+		AffectedPRs:      result.AffectedPRs,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(resp)
+}

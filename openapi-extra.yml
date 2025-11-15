@@ -41,6 +41,37 @@ paths:
                   - pull_request_id: pr-1002
                     assignments: 1
 
+  /users/bulkDeactivate:
+    post:
+      tags: [Users]
+      summary: Массовая деактивация пользователей команды
+      description: |
+        Массово деактивирует указанных пользователей в рамках команды
+        и безопасно переназначает ревьюверов в открытых PR:
+        - деактивированные ревьюверы удаляются из открытых PR,
+        - при наличии активных коллег команды для них выбирается замена,
+        - автор PR никогда не назначается ревьювером.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDeactivateRequest'
+            example:
+              team_name: payments
+              user_ids: ["u2", "u3", "u5"]
+      responses:
+        '200':
+          description: Результат массовой деактивации и переназначения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkDeactivateResponse'
+              example:
+                team_name: payments
+                deactivated_users: 3
+                affected_prs: 4
+
 components:
   schemas:
     AssignmentStatsByReviewer:
@@ -87,3 +118,36 @@ components:
           description: Статистика по PR
           items:
             $ref: '#/components/schemas/AssignmentStatsByPR'
+
+    BulkDeactivateRequest:
+      type: object
+      required:
+        - team_name
+        - user_ids
+      properties:
+        team_name:
+          type: string
+          description: Имя команды, в рамках которой производится деактивация
+        user_ids:
+          type: array
+          description: Список ID пользователей, которых нужно деактивировать
+          items:
+            type: string
+
+    BulkDeactivateResponse:
+      type: object
+      required:
+        - team_name
+        - deactivated_users
+        - affected_prs
+      properties:
+        team_name:
+          type: string
+          description: Имя команды
+        deactivated_users:
+          type: integer
+          format: int64
+          description: Сколько пользователей реально стало неактивными в этой операции
+        affected_prs:
+          type: integer
+          description: Сколько открытых PR было затронуто (удаление/замена ревьюверов)

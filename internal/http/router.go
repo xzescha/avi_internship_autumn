@@ -6,7 +6,7 @@ import (
 )
 
 // NewRouter собирает http.Handler со всеми эндпоинтами сервиса.
-// На вход сервисы, внутри создаются хендлеры.
+// На вход подаём сервисы, внутри создаём хендлеры.
 func NewRouter(
 	teamSvc app.TeamService,
 	userSvc app.UserService,
@@ -25,6 +25,7 @@ func NewRouter(
 	// Users
 	mux.HandleFunc("/users/setIsActive", userHandler.SetIsActive)
 	mux.HandleFunc("/users/getReview", userHandler.GetReview)
+	mux.HandleFunc("/users/bulkDeactivate", userHandler.BulkDeactivate)
 
 	// PullRequests
 	mux.HandleFunc("/pullRequest/create", prHandler.Create)

@@ -15,6 +15,7 @@ type TeamService interface {
 type UserService interface {
 	SetIsActive(ctx context.Context, userID string, isActive bool) (domain.User, error)
 	GetReviewPRs(ctx context.Context, userID string) ([]domain.PullRequest, error)
+	BulkDeactivateTeam(ctx context.Context, teamName string, userIDs []string) (domain.BulkDeactivateResult, error)
 }
 
 // PRService описывает операции над pull requestами.
