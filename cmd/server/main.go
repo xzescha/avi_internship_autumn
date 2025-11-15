@@ -1,5 +1,5 @@
-// Package server пакет для инициализации всех сервисов приложения
-package server
+// Package main пакет для инициализации всех сервисов приложения
+package main
 
 import (
 	"context"

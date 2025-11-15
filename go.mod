@@ -2,7 +2,10 @@ module avi_internship_autumn
 
 go 1.25
 
-require github.com/lib/pq v1.10.9
+require (
+	github.com/lib/pq v1.10.9
+	github.com/testcontainers/testcontainers-go v0.40.0
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect

@@ -42,3 +42,35 @@ services:
     ports:
       - "8080:8080"
     restart: on-failure
+
+  e2e:
+    build:
+      context: .
+      target: builder
+    profiles: [ "tests" ]
+    depends_on:
+      postgres_PR_db:
+        condition: service_healthy
+    environment:
+      # подключаемся к уже поднятому postgres-сервису
+      E2E_DSN: postgres://admin_PR:appPass_QWERTY@postgres_PR_db:5432/PR_serv?sslmode=disable
+    volumes:
+       - /var/run/docker.sock:/var/run/docker.sock
+    command: [ "go", "test", "-tags=e2e", "./test/e2e", "-v" ]
+
+    # ---------- Нагрузочные тесты (k6) ---------- #
+  k6:
+    image: grafana/k6
+    profiles: [ "tests" ]
+    depends_on:
+      app:
+        condition: service_started
+      e2e:
+        condition: service_completed_successfully
+    environment:
+      BASE_URL: http://app:8080     # app внутри сети доступен по имени сервиса
+    volumes:
+      - ./test/load:/scripts:ro          # тут лежит k6_pr_scenario.js
+    command: [ "run", "/scripts/k6_pr_scenario.js" ]
+
+
