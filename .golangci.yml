@@ -1,0 +1,52 @@
+version: 2
+
+run:
+  timeout: 5m
+  tests: true
+
+  skip-dirs:
+    - internal/db/migrations
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - errcheck
+    - revive
+    - gocyclo
+    - goconst
+    - misspell
+
+  disable:
+    - funlen
+    - dupl
+    - nakedret
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+
+  gofumpt:
+    extra-rules: true
+
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+      - name: range-val-in-closure
+        disabled: false
+      - name: line-length-limit
+        disabled: true
+      - name: unused-parameter
+        disabled: true
+
+issues:
+  exclude-use-default: false
+
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - goconst
+        - errcheck
