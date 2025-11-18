@@ -5,15 +5,15 @@ services:
     image: postgres:16-alpine
     container_name: avi-postgres
     environment:
-      POSTGRES_USER: admin_PR
-      POSTGRES_PASSWORD: appPass_QWERTY
-      POSTGRES_DB: PR_serv
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - ./internal/db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin_PR -d PR_serv"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -25,17 +25,17 @@ services:
       postgres_PR_db:
         condition: service_healthy
     environment:
-      HTTP_PORT: "8080"
+      HTTP_PORT: ${HTTP_PORT}
 
-      DB_HOST: postgres_PR_db
-      DB_PORT: "5432"
-      DB_USER: admin_PR
-      DB_PASSWORD: appPass_QWERTY
-      DB_NAME: PR_serv
-      DB_SSLMODE: disable
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: ${DB_SSLMODE}
 
     ports:
-      - "8080:8080"
+      - "${HTTP_PORT}:${HTTP_PORT}"
     restart: on-failure
 
   e2e:
@@ -61,7 +61,7 @@ services:
       e2e:
         condition: service_completed_successfully
     environment:
-      BASE_URL: http://app:8080
+      BASE_URL: http://app:${HTTP_PORT}
     volumes:
       - ./test/load:/scripts:ro
     command: [ "run", "/scripts/k6_pr_scenario.js" ]

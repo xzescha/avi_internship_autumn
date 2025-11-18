@@ -9,8 +9,6 @@ import (
 )
 
 const (
-	defaultHTTPPort = "8080"
-
 	defaultDBHost     = "postgres_PR_db"
 	defaultDBPort     = 5432
 	defaultDBUser     = "admin_PR"
@@ -75,7 +73,7 @@ func (c DBConfig) DSNString() string {
 // Load считывает конфиг из переменных окружения.
 func Load() (Config, error) {
 	httpCfg := HTTPConfig{
-		Port:         getEnv("HTTP_PORT", defaultHTTPPort),
+		Port:         getEnv("HTTP_PORT", "8080"),
 		ReadTimeout:  getDurationEnv("HTTP_READ_TIMEOUT", 5*time.Second),
 		WriteTimeout: getDurationEnv("HTTP_WRITE_TIMEOUT", 5*time.Second),
 		IdleTimeout:  getDurationEnv("HTTP_IDLE_TIMEOUT", 60*time.Second),

@@ -18,8 +18,6 @@ USER appuser
 
 COPY --from=builder /app/server /app/server
 
-EXPOSE 8080
-
-ENV HTTP_PORT=8080
+EXPOSE ${HTTP_PORT}
 
 ENTRYPOINT ["/app/server"]
